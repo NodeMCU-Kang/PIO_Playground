@@ -1,0 +1,59 @@
+// Use [env:8266-ESP07]   for ESP07 module(ESP8266 based)
+// Use [env:nodemcuv2]    for D1 Mini module(ESP8266 based)
+// Use [env:m5stack-atom] for M5Stack ATOM Lite(ESP32 based)
+// Use [env:esp32dev]     for Espressif ESP32 DevKit(ESP32 based)
+
+#include <Arduino.h>
+
+// platformio.ini 裡 
+//   platform = espressif32 會 define ESP32
+//   platform = espressif8266 會 define ESP8266
+#ifdef ESP32 
+  #include <WiFi.h>
+  #include <M5Atom.h>
+#else
+  #include <ESP8266WiFi.h>
+#endif   
+
+
+// Wi-Fi基地台的名稱和密碼
+const char* ssid = "UCM_DEMO";
+const char* password = "11223344";
+
+unsigned long previousMillis = 0;
+const long interval = 2000;
+
+void setup(void) {
+  Serial.begin(115200);
+  Serial.println();
+  WiFi.mode(WIFI_STA);
+  delay(100);
+
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting Wi-Fi");
+ 
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.print("\nConnected to: ");
+  Serial.println(ssid);
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+  Serial.println("");
+  delay(1000);
+}
+
+void loop(void) {
+  unsigned long currentMillis = millis();
+
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+    // 讀取RSSI數值
+    int rssi = WiFi.RSSI();
+    
+    Serial.print("RSSI: ");
+    Serial.println(rssi);
+  }
+}

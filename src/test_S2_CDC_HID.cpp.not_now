@@ -1,0 +1,49 @@
+// =============================
+/*
+  USB CDC test
+*/
+
+#include <Arduino.h>
+
+void setup() {
+
+  Serial.begin(115200);
+  delay(2000); // wait for USB CDC be ready to show the "Start up" message in the next line
+  Serial.println("Start up");
+
+}
+
+void loop() {
+  Serial.println("loop");
+  delay(1000);
+}
+
+// =============================
+/*
+  HID Keyboard test
+*/
+
+// #include "USB.h"
+// #include "USBHIDKeyboard.h"
+// #include <Arduino.h>
+// USBHIDKeyboard Keyboard;
+
+// void setup() {
+//   // open the serial port:
+//   // Serial.begin(115200);
+//   // initialize control over the keyboard:
+//   Keyboard.begin();
+//   USB.begin();
+// }
+
+// void loop() {
+//   // check for incoming serial data:
+//   // if (Serial.available() > 0) {
+//   //   // read incoming serial data:
+//   //   char inChar = Serial.read();
+//   //   // Type the next ASCII value from what you received:
+//   //   Keyboard.write(inChar + 1);
+//   // }
+//   Keyboard.write('A');
+//   delay(2000);
+// }

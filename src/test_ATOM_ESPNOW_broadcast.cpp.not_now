@@ -1,0 +1,285 @@
+// Ref: https://www.youtube.com/watch?v=w4R9VoY96h8
+#include <Arduino.h>
+#include <WiFi.h>
+#include <esp_now.h>
+#include <esp_wifi.h>
+#include <Wire.h>
+#include <M5Atom.h>
+
+#include "OneButton.h"
+
+// define GPIO39 for button
+#define buttonPin 39
+bool buttonDown = false;
+bool ledOn = false;
+
+void formatMacAddress(const uint8_t *macAddr, char *buffer, int maxLength)
+{
+  snprintf(buffer, maxLength, "%02x:%02x:%02x:%02x:%02x:%02x", macAddr[0], macAddr[1], macAddr[2], macAddr[3], macAddr[4], macAddr[5]);
+}
+
+void receiveCallback(const uint8_t *macAddr, const uint8_t *data, int dataLen)
+{
+  // only allow a maximum of 250 characters in the message + a null terminating byte
+  char buffer[ESP_NOW_MAX_DATA_LEN + 1]; // ESP_NOW_MAX_DATA_LEN=250
+  int msgLen = min(ESP_NOW_MAX_DATA_LEN, dataLen);
+  Serial.printf("%d, %d\n",msgLen, ESP_NOW_MAX_DATA_LEN);
+  strncpy(buffer, (const char *)data, msgLen);
+  // make sure we are null terminated
+  buffer[msgLen] = 0;
+  // format the mac address
+  char macStr[18];
+  formatMacAddress(macAddr, macStr, 18);
+  // debug log the message to the serial port
+  Serial.printf("A Received message from: %s - %s\n", macStr, buffer);
+
+  for (int i=0; i< dataLen; i++) {
+    Serial.printf("%d ", data[i]);
+  }
+
+  Serial.println();
+
+  // what are our instructions
+  if (strcmp("on", buffer) == 0)
+  {
+    ledOn = true;
+  }
+  else
+  {
+    ledOn = false;
+  }
+  // digitalWrite(2, ledOn);
+  if (ledOn)
+    M5.dis.drawpix(0, 0xffffff);
+  else
+    M5.dis.drawpix(0, 0xff0000);
+}
+
+// callback when data is sent
+void sentCallback(const uint8_t *macAddr, esp_now_send_status_t status)
+{
+  char macStr[18];
+  formatMacAddress(macAddr, macStr, 18);
+  Serial.print("Last Packet Sent to: ");
+  Serial.println(macStr);
+  Serial.print("Last Packet Send Status: ");
+  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+}
+
+void broadcast(const String &message)
+{
+  // this will broadcast a message to everyone in range
+  uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+  esp_now_peer_info_t peerInfo = {};
+  memcpy(&peerInfo.peer_addr, broadcastAddress, 6);
+  peerInfo.channel = 0;     // 0 or 1 both OK, 12 -> E (1262) ESPNOW: Peer channel is not equal to the home channel, send fail!
+  peerInfo.encrypt = false; // E (1263) ESPNOW: Do not support encryption for multicast address
+
+  if (!esp_now_is_peer_exist(broadcastAddress))
+  {
+    esp_now_add_peer(&peerInfo);
+  }
+  esp_err_t result = esp_now_send(broadcastAddress, (const uint8_t *)message.c_str(), message.length());
+  // and this will send a message to a specific device
+  /*uint8_t peerAddress[] = {0x3C, 0x71, 0xBF, 0x47, 0xA5, 0xC0};
+  esp_now_peer_info_t peerInfo = {};
+  memcpy(&peerInfo.peer_addr, peerAddress, 6);
+  if (!esp_now_is_peer_exist(peerAddress))
+  {
+    esp_now_add_peer(&peerInfo);
+  }
+  esp_err_t result = esp_now_send(peerAddress, (const uint8_t *)message.c_str(), message.length());*/
+  if (result == ESP_OK)
+  {
+    Serial.println("Broadcast message success");
+  }
+  else if (result == ESP_ERR_ESPNOW_NOT_INIT)
+  {
+    Serial.println("ESPNOW not Init.");
+  }
+  else if (result == ESP_ERR_ESPNOW_ARG)
+  {
+    Serial.println("Invalid Argument");
+  }
+  else if (result == ESP_ERR_ESPNOW_INTERNAL)
+  {
+    Serial.println("Internal Error");
+  }
+  else if (result == ESP_ERR_ESPNOW_NO_MEM)
+  {
+    Serial.println("ESP_ERR_ESPNOW_NO_MEM");
+  }
+  else if (result == ESP_ERR_ESPNOW_NOT_FOUND)
+  {
+    Serial.println("Peer not found.");
+  }
+  else
+  {
+    Serial.println("Unknown error");
+  }
+}
+
+// use OneButton
+OneButton button(buttonPin, true);
+void myClickFunction()
+{
+  // toggle the LED state
+  ledOn = !ledOn;
+  Serial.print("LED status:");
+  Serial.println(ledOn);
+  // digitalWrite(2, ledOn);
+  if (ledOn)
+    M5.dis.drawpix(0, 0xffffff);
+  else
+    M5.dis.drawpix(0, 0xff0000);
+  // send a message to everyone else
+  if (ledOn)
+  {
+    broadcast("on");
+  }
+  else
+  {
+    broadcast("off");
+  }
+}
+
+void myDoubleClickFunction()
+{
+  Serial.println("Double Click!");
+}
+
+void setup()
+{
+  M5.begin(true, false, true); // Init Atom-Matrix(Initialize serial port, LED).  初始化 ATOM-Matrix(初始化串口、LED点阵)
+  delay(50);                   // delay 50ms.  延迟50ms
+
+  M5.dis.drawpix(0, 0xff0000);
+
+  // button GPIO - pressed when boot up t0 force to use bridge AP mode
+  pinMode(buttonPin, INPUT_PULLUP);
+
+  Serial.begin(115200);
+  delay(1000);
+  // Set device in STA mode to begin with
+  WiFi.mode(WIFI_STA);
+
+  Serial.println(WiFi.getTxPower());
+
+  // 改變 channel 好像沒作用
+  // esp_wifi_set_promiscuous(true);
+  // esp_wifi_set_channel(2, WIFI_SECOND_CHAN_NONE);
+  // esp_wifi_set_promiscuous(false);
+
+  // 雖然 LR 設定 OK，但感覺不出效果。if mode LR config OK
+  int lr_err = esp_wifi_set_protocol(WIFI_IF_STA, WIFI_PROTOCOL_LR);
+  if (lr_err == 0)
+  {
+    Serial.println(" ");
+    Serial.print("Error = ");
+    Serial.print(lr_err);
+    Serial.println(" , Mode LR OK!");
+  }
+  else // if some error in LR config
+  {
+    Serial.println(" ");
+    Serial.print("Error = ");
+    Serial.print(lr_err);
+    Serial.println(" , Error in Mode LR!");
+  }
+
+  Serial.println("ESPNow Example");
+  // Output my MAC address - useful for later
+  Serial.print("My MAC Address is: ");
+  Serial.println(WiFi.macAddress());
+
+  // shut down wifi
+  WiFi.disconnect();
+  // startup ESP Now
+  if (esp_now_init() == ESP_OK)
+  {
+    Serial.println("ESPNow Init Success");
+    esp_now_register_recv_cb(receiveCallback);
+    esp_now_register_send_cb(sentCallback);
+  }
+  else
+  {
+    Serial.println("ESPNow Init Failed");
+    delay(3000);
+    ESP.restart();
+  }
+
+  // OneButton callbacks
+  // link the myClickFunction function to be called on a click event.
+  button.attachClick(myClickFunction);
+
+  // link the doubleclick function to be called on a doubleclick event.
+  button.attachDoubleClick(myDoubleClickFunction);
+
+  // set 80 msec. debouncing time. Default is 50 msec.
+  button.setDebounceTicks(80);
+}
+
+char receivedChar;
+String content="";
+void loop()
+{
+  bool EOL=false;
+  button.tick();
+  while (Serial.available() > 0)
+  {
+    receivedChar = Serial.read();
+
+    if (int(receivedChar)==10){ // \n is 10, \r is 13
+      break;
+    }  
+
+    Serial.print(receivedChar+1);    
+    content.concat(receivedChar);
+
+    if (int(receivedChar)==13){ // \n is 10, \r is 13
+      EOL=true;
+      break;
+    }
+  }
+
+  if (EOL) {
+    Serial.println(content);
+    //delay(5000);
+    broadcast(content);
+    M5.dis.drawpix(0, 0x00ff00);
+    content="";
+    EOL=false;
+  }
+  // if (digitalRead(buttonPin))
+  // {
+  //   // detect the transition from low to high
+  //   if (!buttonDown)Receivedmessagefrom:4c:75:25:ad:f8:b8-AAA           
+  //   {
+  //     buttonDown = true;
+  //     // toggle the LED state
+  //     ledOn = !ledOn;
+  //     Serial.print("LED status:"); Serial.println(ledOn);
+  //     //digitalWrite(2, ledOn);
+  //      if (ledOn)
+  //       M5.dis.drawpix(0, 0xffffff);
+  //     else
+  //       M5.dis.drawpix(0, 0xff0000);
+  //     // send a message to everyone else
+  //     if (ledOn)
+  //     {
+  //       broadcast("on");
+  //     }
+  //     else
+  //     {
+  //       broadcast("off");
+  //     }
+  //   }
+  //   // delay to avoid bouncing
+  //   delay(500);
+  // }
+  // else
+  // {
+  //   // reset the button state
+  //   buttonDown = false;
+  // }
+}

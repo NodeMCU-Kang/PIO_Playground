@@ -1,0 +1,75 @@
+#include "SPI.h"
+#include "TFT_eSPI.h"
+// #include "U8g2_for_TFT_eSPI.h"
+#include <Arduino.h>
+
+#define LED_DI_PIN 40
+#define LED_CI_PIN 39
+#include <FastLED.h> // https://github.com/FastLED/FastLED
+CRGB leds;
+
+#include "USB.h"
+#include "USBHIDKeyboard.h"
+USBHIDKeyboard Keyboard;
+
+TFT_eSPI tft = TFT_eSPI(); // tft instance
+// U8g2_for_TFT_eSPI u8f;     // U8g2 font instance
+
+void setup() {
+  FastLED.addLeds<APA102, LED_DI_PIN, LED_CI_PIN, BGR>(&leds, 1);
+  Serial.begin();
+  //delay(2000);
+  Serial.print("Start up");
+  tft.begin();
+  tft.setRotation(1);
+  tft.fillScreen(TFT_BLUE);
+  // tft.setTextColor(TFT_WHITE, TFT_RED);
+  //  tft.drawString("XXX", 10, 10, 1);
+  //  tft.drawString("YYY", 10, 30, 2);
+  //  tft.drawString("ZZZ", 10, 60, 4);
+  //  tft.drawString("123", 10, 100, 6);
+  //  tft.drawString("456", 10, 140, 8);
+
+  // u8f.begin(tft);                    // connect u8g2 procedures to TFT_eSPI
+  // u8f.setFontMode(0);                // use u8g2 none transparent mode
+  // u8f.setFontDirection(0);           // left to right (this is default)
+  // u8f.setForegroundColor(TFT_GREEN); // apply color
+  // u8f.setBackgroundColor(TFT_BLUE);
+
+  // u8f.setFont(u8g2_font_helvR14_tf);  // select u8g2 font from here: https://github.com/olikraus/u8g2/wiki/fntlistall
+  // u8f.setCursor(0,20);                // start writing at this position
+  // u8f.print("Hello World");
+  // u8f.setCursor(0,40);                // start writing at this position
+  // u8f.print("Umlaut ÄÖÜ");            // UTF-8 string with german umlaut chars
+
+  // u8f.setFont(u8g2_font_inb63_mn);    // select u8g2 font from here: https://github.com/olikraus/u8g2/wiki/fntlistall
+  // u8f.setFontMode(0); // use u8g2 none transparent mode
+
+  // u8f.setFont(u8g2_font_unifont_t_chinese1);
+  // // u8f.setCursor(0, 15);
+  // // u8f.print("連接位址"); // Chinese Unicode chars
+  // u8f.drawUTF8(0, 15, "請連接磅秤");
+  // u8f.setFont(u8g2_font_fub14_tr);
+  // u8f.setCursor(0, 40);
+  // u8f.print("ID: A121630072"); // Chinese Unicode chars
+}
+
+unsigned long x = 0;
+
+void loop() {
+  // u8f.setCursor(0,110);             // start writing at this position
+  // u8f.print(x);                     // numerical value
+  // x++;
+  // delay(250);
+  // leds[0] = CRGB::White; FastLED.show(); delay(1000);
+  // leds[0] = CRGB::Red; FastLED.show(); delay(1000);
+  leds = 0xff0000;
+  FastLED.show();
+  delay(1000);
+  leds = 0x00ff00;
+  FastLED.show();
+  delay(1000);
+  leds = 0x0000ff;
+  FastLED.show();
+  delay(1000);
+}

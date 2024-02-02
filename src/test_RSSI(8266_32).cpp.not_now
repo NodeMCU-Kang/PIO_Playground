@@ -10,13 +10,17 @@
 //   platform = espressif8266 會 define ESP8266
 #ifdef ESP32 
   #include <WiFi.h>
-  #include <M5Atom.h>
 #else
   #include <ESP8266WiFi.h>
 #endif   
 
+#ifdef USE_M5Atom 
+  #include <M5Atom.h> // only needed for M5 ATOM
+#endif
 
 // Wi-Fi基地台的名稱和密碼
+// const char* ssid = "SA0001";
+// const char* password = "123456789";
 const char* ssid = "UCM_DEMO";
 const char* password = "11223344";
 
@@ -27,11 +31,11 @@ void setup(void) {
   Serial.begin(115200);
   Serial.println();
   WiFi.mode(WIFI_STA);
-  delay(100);
+  delay(500);
 
+  Serial.printf("Connecting Wi-Fi %s\n", ssid);
   WiFi.begin(ssid, password);
-  Serial.print("Connecting Wi-Fi");
- 
+
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
